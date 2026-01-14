@@ -1,0 +1,17 @@
+Logs e arquivos de sistema
+
+.DS_Store
+Thumbs.db
+*.log
+
+Dependências (se usar Node.js no futuro)
+
+node_modules/
+dist/
+.env
+.env.local
+
+Arquivos de IDE
+
+.vscode/
+.idea/

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AutoMarket App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        .app-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; display: flex; flex-direction: column; }
+        #reader { width: 100%; border-radius: 10px; overflow: hidden; background: black; }
+        #reader video { object-fit: cover; border-radius: 10px; }
+        .scenario-btn { border: 1px solid #cbd5e1; color: #64748b; background: white; }
+        .scenario-btn.active { background-color: #1e293b; color: white; border-color: #1e293b; transform: scale(1.05); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        /* Modal Tutorial */
+        .tutorial-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 50; display: flex; flex-direction: column; justify-content: center; padding: 20px; }
+        .tutorial-card { background: white; border-radius: 20px; padding: 25px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    </style>
+</head>
+<body class="text-slate-800">
+
+<div class="app-container shadow-2xl relative">
+    
+    <!-- Header -->
+    <header class="bg-slate-900 text-white p-4 flex justify-between items-center sticky top-0 z-20 shadow-lg">
+        <div class="flex items-center">
+            <h1 class="font-bold text-lg"><i class="fas fa-building mr-2 text-yellow-400"></i>AutoMarket <span class="text-[10px] bg-slate-700 px-1 rounded">ME</span></h1>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="showTutorial()" class="text-xs bg-slate-700 hover:bg-slate-600 w-8 h-8 rounded-full font-bold shadow-sm flex items-center justify-center transition">
+                <i class="fas fa-question text-white"></i>
+            </button>
+            <button onclick="openConfig()" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-full font-bold shadow-sm flex items-center transition">
+                <i class="fas fa-cog mr-1"></i> Taxas
+            </button>
+        </div>
+    </header>
+
+    <!-- TELA 1: UPLOAD -->
+    <div id="setup-screen" class="p-6 flex-1 flex flex-col justify-center items-center text-center bg-white z-10">
+        <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6">
+            <i class="fas fa-file-invoice text-3xl text-slate-600"></i>
+        </div>
+        <h2 class="text-xl font-bold mb-2 text-slate-800">Sistema ME</h2>
+        <p class="text-sm text-gray-500 mb-6 max-w-xs mx-auto">Carregue o Planograma (.xlsx) atualizado.</p>
+        <label class="w-full cursor-pointer mb-4">
+            <div class="bg-blue-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg flex items-center justify-center transition active:scale-95">
+                <i class="fas fa-upload mr-3"></i> Carregar Arquivo
+            </div>
+            <input type="file" id="file-input" class="hidden" accept="*/*">
+        </label>
+        <div id="db-status" class="text-xs text-gray-400">Aguardando</div>
+    </div>
+
+    <!-- TELA 2: SCANNER -->
+    <div id="app-screen" class="hidden flex-1 flex flex-col bg-slate-50 relative">
+        <div id="camera-modal" class="hidden fixed inset-0 z-50 bg-black bg-opacity-95 flex flex-col justify-center p-4">
+            <div class="flex justify-between text-white mb-4">
+                <h3 class="font-bold">Scanner</h3>
+                <button onclick="stopCamera()" class="text-red-400 font-bold"><i class="fas fa-times"></i> Fechar</button>
+            </div>
+            <div id="reader"></div>
+        </div>
+
+        <div class="bg-white p-4 shadow-sm z-10 border-b border-gray-200">
+            <div class="flex gap-2">
+                <button onclick="startCamera()" class="bg-slate-800 text-white p-3 rounded-xl w-14 shadow-lg active:scale-95 transition">
+                    <i class="fas fa-camera"></i>
+                </button>
+                <input type="number" id="ean-input" inputmode="numeric" placeholder="Código..." 
+                       class="flex-1 p-3 rounded-xl bg-gray-100 border-2 border-transparent focus:bg-white focus:border-blue-500 outline-none text-lg font-bold text-center">
+                <button onclick="manualSearch()" class="bg-blue-600 text-white p-3 rounded-xl w-14 shadow-lg active:scale-95 transition">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 pb-24">
+            <div id="empty-state" class="flex flex-col items-center justify-center h-64 text-gray-400 opacity-60">
+                <i class="fas fa-barcode text-5xl mb-4"></i>
+                <p class="text-sm font-medium">Bipe o produto</p>
+            </div>
+
+            <div id="product-card" class="hidden animate-fade-in-up">
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 mb-4 relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-1.5 h-full bg-blue-600"></div>
+                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1" id="prod-ean">EAN</span>
+                    <h2 class="text-xl font-bold text-gray-800 leading-tight mb-3" id="prod-name">Produto</h2>
+                    <div class="flex items-end justify-between border-t border-gray-100 pt-3">
+                        <div>
+                            <p class="text-xs text-gray-500 mb-0.5">Preço Venda</p>
+                            <p class="text-2xl font-black text-slate-800" id="current-price">R$ 0,00</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-gray-500 mb-0.5">Estoque</p>
+                            <span class="bg-gray-100 text-gray-800 px-2 py-1 rounded text-sm font-bold" id="current-stock">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-200">
+                    <div class="flex justify-between items-center mb-4 bg-gray-50 p-2 rounded-lg cursor-pointer" onclick="editRefCost()">
+                        <span class="text-xs font-bold text-gray-500 uppercase">Custo Histórico</span>
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-gray-700" id="ref-cost">R$ 0,00</span>
+                            <i class="fas fa-pen text-[10px] text-gray-400"></i>
+                        </div>
+                    </div>
+
+                    <div class="relative mb-6">
+                        <label class="text-[10px] font-bold text-slate-800 uppercase mb-1 block">Preço Atacado (Hoje)</label>
+                        <span class="absolute left-4 top-8 text-gray-400 font-bold">R$</span>
+                        <input type="number" id="new-cost" step="0.01" class="w-full pl-10 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none text-xl font-bold transition" placeholder="0.00" oninput="calculateCFO()">
+                    </div>
+
+                    <div class="mb-4">
+                        <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Simular Pagamento:</p>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button onclick="setScenario('pix')" id="btn-pix" class="scenario-btn py-2 rounded-lg text-xs font-bold transition">PIX</button>
+                            <button onclick="setScenario('credito')" id="btn-credito" class="scenario-btn active py-2 rounded-lg text-xs font-bold transition">CRÉDITO</button>
+                            <button onclick="setScenario('voucher')" id="btn-voucher" class="scenario-btn py-2 rounded-lg text-xs font-bold transition">VOUCHER</button>
+                        </div>
+                    </div>
+
+                    <div id="cfo-feedback" class="hidden animate-fade-in">
+                        <div id="status-bar" class="p-3 rounded-lg text-sm font-bold text-white text-center mb-3 shadow-md transition-all">Analisando...</div>
+                        <div class="bg-gray-50 rounded-lg p-3 text-xs space-y-2 border border-gray-200">
+                            <div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-2">
+                                <span class="font-bold text-gray-600">Taxa Pagamento</span>
+                                <span class="bg-slate-200 px-2 py-0.5 rounded text-slate-700 font-bold" id="lbl-payment-rate">0%</span>
+                            </div>
+                            <div class="flex justify-between text-gray-500"><span>Taxas Variáveis</span><span id="val-var">- R$ 0,00</span></div>
+                            <div class="flex justify-between text-gray-500"><span>Custo Fixo Diluído</span><span id="val-fix">- R$ 0,00</span></div>
+                            <div class="flex justify-between border-t border-gray-200 pt-2 mt-2">
+                                <span class="font-bold text-slate-800 text-sm">LUCRO LÍQUIDO</span>
+                                <span class="font-bold text-sm" id="val-net">R$ 0,00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="floating-action" class="absolute bottom-6 left-0 right-0 px-6 hidden z-30">
+            <button onclick="resetApp()" class="w-full bg-slate-900 text-white font-bold py-4 rounded-xl shadow-xl active:scale-95 transition">
+                <i class="fas fa-check mr-2"></i> Próximo
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIGURAÇÃO -->
+    <div id="config-modal" class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 flex items-end sm:items-center justify-center">
+        <div class="bg-white w-full sm:max-w-md h-[95vh] sm:h-auto rounded-t-2xl sm:rounded-2xl p-6 overflow-y-auto flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-slate-800">Configuração Fiscal</h2>
+                <button onclick="closeConfig()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="space-y-4 flex-1">
+                <div>
+                    <h3 class="text-xs font-bold text-blue-600 uppercase mb-2 border-b pb-1">Taxas Variáveis (%)</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="text-[10px] text-gray-500 block">Licenciamento (6%)</label><input type="number" id="cfg-license" class="w-full p-2 bg-gray-100 rounded font-bold" value="6.0"></div>
+                        <div><label class="text-[10px] text-gray-500 block">Imposto ME</label><input type="number" id="cfg-tax-me" class="w-full p-2 bg-yellow-50 border border-yellow-200 rounded font-bold text-yellow-800" value="4.0"></div>
+                        <div><label class="text-[10px] text-gray-500 block">Condomínio Var.</label><input type="number" id="cfg-condo-var" class="w-full p-2 bg-gray-100 rounded font-bold" value="2.0"></div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-xs font-bold text-blue-600 uppercase mb-2 border-b pb-1 mt-2">Taxas Maquininha (%)</h3>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div><label class="text-[9px] text-gray-500 block">PIX</label><input type="number" id="cfg-pix" class="w-full p-2 bg-gray-100 rounded font-bold" value="0.74"></div>
+                        <div><label class="text-[9px] text-gray-500 block">Crédito</label><input type="number" id="cfg-cred" class="w-full p-2 bg-gray-100 rounded font-bold" value="3.16"></div>
+                        <div><label class="text-[9px] text-gray-500 block">Voucher</label><input type="number" id="cfg-vouc" class="w-full p-2 bg-red-50 border border-red-200 rounded font-bold text-red-800" value="6.50"></div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-xs font-bold text-blue-600 uppercase mb-2 border-b pb-1 mt-2">Custos Fixos (R$ Mês)</h3>
+                    <div class="space-y-1 text-xs">
+                        <div class="flex justify-between items-center"><label>Luz/Condomínio</label><input type="number" id="cfg-luz" class="w-20 p-1 text-right bg-gray-100 rounded" value="600"></div>
+                        <div class="flex justify-between items-center"><label>Contadora</label><input type="number" id="cfg-serv" class="w-20 p-1 text-right bg-gray-100 rounded" value="150"></div>
+                        <div class="flex justify-between items-center"><label>Gasolina</label><input type="number" id="cfg-gas" class="w-20 p-1 text-right bg-gray-100 rounded" value="500"></div>
+                        <div class="flex justify-between items-center"><label>Internet</label><input type="number" id="cfg-net" class="w-20 p-1 text-right bg-gray-100 rounded" value="150"></div>
+                        <div class="flex justify-between items-center"><label>Monitoramento</label><input type="number" id="cfg-mon" class="w-20 p-1 text-right bg-gray-100 rounded" value="387"></div>
+                        <div class="flex justify-between items-center"><label>Igopass</label><input type="number" id="cfg-igo" class="w-20 p-1 text-right bg-gray-100 rounded" value="38"></div>
+                        <div class="flex justify-between items-center pt-2 mt-2 border-t border-gray-200"><label class="font-bold text-blue-900">Faturamento Médio</label><input type="number" id="cfg-fat" class="w-24 p-2 text-right bg-blue-50 border border-blue-300 font-bold" value="21000"></div>
+                    </div>
+                </div>
+                <div class="bg-slate-100 p-3 rounded-lg text-center mt-4">
+                    <p class="text-xs text-slate-500">Impacto Custo Fixo:</p>
+                    <p class="text-lg font-bold text-slate-800" id="fixed-impact-display">0.0%</p>
+                </div>
+            </div>
+            <button onclick="saveConfig()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl mt-4 shadow-lg">Salvar Configuração</button>
+        </div>
+    </div>
+
+    <!-- TUTORIAL OVERLAY -->
+    <div id="tutorial-modal" class="tutorial-overlay hidden">
+        <div class="tutorial-card">
+            <div id="tut-step-1" class="tut-step">
+                <i class="fas fa-file-excel text-4xl text-blue-600 mb-4"></i>
+                <h3 class="text-xl font-bold mb-2">1. Carregue o Arquivo</h3>
+                <p class="text-gray-600 text-sm mb-6">Baixe o <strong>Planograma</strong> do Shoppbud no celular e carregue aqui. O App funciona sem internet depois disso.</p>
+                <button onclick="nextTut(2)" class="bg-blue-600 text-white py-3 px-8 rounded-full font-bold w-full">Entendi</button>
+            </div>
+            <div id="tut-step-2" class="hidden tut-step">
+                <i class="fas fa-barcode text-4xl text-slate-700 mb-4"></i>
+                <h3 class="text-xl font-bold mb-2">2. Bipe no Atacado</h3>
+                <p class="text-gray-600 text-sm mb-6">No mercado, use a câmera para ler o código do produto. Digite o preço da etiqueta da prateleira.</p>
+                <button onclick="nextTut(3)" class="bg-slate-700 text-white py-3 px-8 rounded-full font-bold w-full">Próximo</button>
+            </div>
+            <div id="tut-step-3" class="hidden tut-step">
+                <i class="fas fa-chart-pie text-4xl text-green-600 mb-4"></i>
+                <h3 class="text-xl font-bold mb-2">3. Veja o Lucro Real</h3>
+                <p class="text-gray-600 text-sm mb-6">O App desconta todas as taxas (maquininha, franquia, luz). Se der <strong>VERDE</strong>, pode comprar!</p>
+                <button onclick="closeTutorial()" class="bg-green-600 text-white py-3 px-8 rounded-full font-bold w-full">Começar!</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // --- ESTADO ---
+    let db = [];
+    let currentProd = null;
+    let html5QrcodeScanner = null;
+    let colMap = {};
+    let activeScenario = 'credito';
+    let config = {
+        var: { license: 6.0, condo: 2.0, taxME: 4.0 },
+        pay: { pix: 0.74, cred: 3.16, vouc: 6.50 },
+        fixed: { luz: 600, serv: 150, gas: 500, net: 150, mon: 387, igo: 38 },
+        revenue: 21000,
+        fixedRate: 0 
+    };
+
+    // --- TUTORIAL ---
+    function showTutorial() {
+        document.getElementById('tutorial-modal').classList.remove('hidden');
+        document.getElementById('tut-step-1').classList.remove('hidden');
+        document.getElementById('tut-step-2').classList.add('hidden');
+        document.getElementById('tut-step-3').classList.add('hidden');
+    }
+    function nextTut(step) {
+        document.querySelectorAll('.tut-step').forEach(el => el.classList.add('hidden'));
+        document.getElementById(`tut-step-${step}`).classList.remove('hidden');
+    }
+    function closeTutorial() {
+        document.getElementById('tutorial-modal').classList.add('hidden');
+        localStorage.setItem('automarket_tut_seen', 'true');
+    }
+
+    // --- CONFIGURAÇÃO ---
+    function openConfig() { document.getElementById('config-modal').classList.remove('hidden'); recalcFixedImpact(); }
+    function closeConfig() { document.getElementById('config-modal').classList.add('hidden'); }
+    function recalcFixedImpact() {
+        const getVal = (id) => parseFloat(document.getElementById(id).value) || 0;
+        const totalFixed = getVal('cfg-luz') + getVal('cfg-serv') + getVal('cfg-gas') + getVal('cfg-net') + getVal('cfg-mon') + getVal('cfg-igo');
+        const revenue = getVal('cfg-fat') || 1;
+        const rate = (totalFixed / revenue) * 100;
+        document.getElementById('fixed-impact-display').textContent = rate.toFixed(2) + "%";
+        return rate;
+    }
+    function saveConfig() {
+        config.var.license = parseFloat(document.getElementById('cfg-license').value);
+        config.var.condo = parseFloat(document.getElementById('cfg-condo-var').value);
+        config.var.taxME = parseFloat(document.getElementById('cfg-tax-me').value);
+        config.pay.pix = parseFloat(document.getElementById('cfg-pix').value);
+        config.pay.cred = parseFloat(document.getElementById('cfg-cred').value);
+        config.pay.vouc = parseFloat(document.getElementById('cfg-vouc').value);
+        config.fixedRate = recalcFixedImpact();
+        localStorage.setItem('automarket_config_v13', JSON.stringify(config));
+        closeConfig();
+        if(currentProd) calculateCFO(); 
+    }
+
+    window.onload = function() {
+        // Load Config
+        const saved = localStorage.getItem('automarket_config_v13');
+        if(saved) {
+            config = JSON.parse(saved);
+            document.getElementById('cfg-license').value = config.var.license;
+            document.getElementById('cfg-tax-me').value = config.var.taxME;
+            // ... (fill others if needed)
+        }
+        recalcFixedImpact();
+        // Show Tutorial if first time
+        if(!localStorage.getItem('automarket_tut_seen')) showTutorial();
+    }
+
+    // --- LEITURA ARQUIVO ---
+    document.getElementById('file-input').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {defval:""});
+                db = jsonData;
+                const headers = Object.keys(db[0]);
+                const find = (k) => headers.find(h => h.toLowerCase().includes(k));
+                colMap = {
+                    ean: find('barras') || find('ean') || headers[2],
+                    name: find('nome') || headers[3],
+                    cost: find('lista') || find('custo') || headers[7],
+                    price: find('consumidor') || find('final') || headers[8],
+                    stock: find('estoque') || headers[9]
+                };
+                document.getElementById('setup-screen').classList.add('hidden');
+                document.getElementById('app-screen').classList.remove('hidden');
+            } catch(err) { alert("Erro arquivo: " + err); }
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    // --- BUSCA ---
+    function manualSearch() { search(document.getElementById('ean-input').value); }
+    function search(query) {
+        const clean = String(query).trim();
+        const found = db.find(r => String(r[colMap.ean]).trim() == clean);
+        if(found) render(found, clean);
+        else alert("Não encontrado.");
+    }
+    function render(p, ean) {
+        currentProd = p;
+        document.getElementById('product-card').classList.remove('hidden');
+        document.getElementById('empty-state').classList.add('hidden');
+        document.getElementById('floating-action').classList.remove('hidden');
+        document.getElementById('prod-name').textContent = p[colMap.name];
+        document.getElementById('prod-ean').textContent = ean;
+        document.getElementById('current-price').textContent = fmtMoney(p[colMap.price]);
+        document.getElementById('current-stock').textContent = parseInt(p[colMap.stock]);
+        document.getElementById('ref-cost').textContent = fmtMoney(p[colMap.cost]);
+        document.getElementById('ref-cost').dataset.val = parseMoney(p[colMap.cost]);
+        document.getElementById('new-cost').value = '';
+        document.getElementById('cfo-feedback').classList.add('hidden');
+        setScenario('credito');
+    }
+
+    // --- CÉREBRO ---
+    window.setScenario = function(type) {
+        activeScenario = type;
+        ['pix', 'credito', 'voucher'].forEach(t => {
+            const btn = document.getElementById('btn-'+t);
+            if(t === type) btn.classList.add('active'); else btn.classList.remove('active');
+        });
+        calculateCFO();
+    }
+    window.calculateCFO = function() {
+        if(!currentProd) return;
+        const newCost = parseFloat(document.getElementById('new-cost').value);
+        if(!newCost) { document.getElementById('cfo-feedback').classList.add('hidden'); return; }
+        const sellPrice = parseMoney(currentProd[colMap.price]);
+        let paymentRate = 0;
+        if(activeScenario === 'pix') paymentRate = config.pay.pix;
+        if(activeScenario === 'credito') paymentRate = config.pay.cred;
+        if(activeScenario === 'voucher') paymentRate = config.pay.vouc;
+        const totalVarPercent = config.var.license + config.var.condo + config.var.taxME + paymentRate;
+        const totalVarVal = sellPrice * (totalVarPercent / 100);
+        const totalFixPercent = config.fixedRate;
+        const totalFixVal = sellPrice * (totalFixPercent / 100);
+        const netProfit = sellPrice - totalVarVal - totalFixVal - newCost;
+        const margin = (netProfit / sellPrice) * 100;
+        
+        document.getElementById('cfo-feedback').classList.remove('hidden');
+        document.getElementById('lbl-payment-rate').textContent = `${paymentRate}% (${activeScenario.toUpperCase()})`;
+        document.getElementById('val-var').textContent = `- ${fmtMoney(totalVarVal)} (${totalVarPercent.toFixed(1)}%)`;
+        document.getElementById('val-fix').textContent = `- ${fmtMoney(totalFixVal)} (${totalFixPercent.toFixed(1)}%)`;
+        const netEl = document.getElementById('val-net');
+        netEl.textContent = fmtMoney(netProfit) + ` (${margin.toFixed(1)}%)`;
+        const statusEl = document.getElementById('status-bar');
+        if (netProfit < 0) {
+            statusEl.textContent = "🚨 PREJUÍZO!"; statusEl.className = "p-3 rounded-lg text-sm font-bold text-white text-center mb-3 shadow-md bg-red-600 animate-pulse";
+            netEl.className = "font-bold text-sm text-red-600";
+        } else if (margin < 15) {
+            statusEl.textContent = "⚠️ MARGEM BAIXA"; statusEl.className = "p-3 rounded-lg text-sm font-bold text-white text-center mb-3 shadow-md bg-yellow-500";
+            netEl.className = "font-bold text-sm text-yellow-600";
+        } else {
+            statusEl.textContent = "✅ LUCRO APROVADO"; statusEl.className = "p-3 rounded-lg text-sm font-bold text-white text-center mb-3 shadow-md bg-green-600";
+            netEl.className = "font-bold text-sm text-green-600";
+        }
+    }
+
+    // --- HELPERS ---
+    function parseMoney(v) { if(typeof v === 'number') return v; return parseFloat(String(v).replace('R$', '').replace(',','.').trim()) || 0; }
+    function fmtMoney(v) { return v.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}); }
+    function startCamera() { document.getElementById('camera-modal').classList.remove('hidden'); html5QrcodeScanner = new Html5Qrcode("reader"); html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (txt) => { stopCamera(); document.getElementById('ean-input').value = txt; search(txt); }).catch(err => { alert("Erro Câmera: " + err); stopCamera(); }); }
+    function stopCamera() { if(html5QrcodeScanner) html5QrcodeScanner.stop().then(()=>document.getElementById('camera-modal').classList.add('hidden')); else document.getElementById('camera-modal').classList.add('hidden'); }
+    function resetApp() { document.getElementById('ean-input').value=''; document.getElementById('product-card').classList.add('hidden'); document.getElementById('floating-action').classList.add('hidden'); document.getElementById('empty-state').classList.remove('hidden'); }
+</script>
+</body>
+</html>
