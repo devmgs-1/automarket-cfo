@@ -3,22 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AutoMarket App</title>
+    <title>AutoMarket v15</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; -webkit-tap-highlight-color: transparent; }
         .app-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; display: flex; flex-direction: column; }
         #reader { width: 100%; border-radius: 10px; overflow: hidden; background: black; }
         #reader video { object-fit: cover; border-radius: 10px; }
-        .scenario-btn { border: 1px solid #cbd5e1; color: #64748b; background: white; }
-        .scenario-btn.active { background-color: #1e293b; color: white; border-color: #1e293b; transform: scale(1.05); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        /* Modal Tutorial */
-        .tutorial-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 50; display: flex; flex-direction: column; justify-content: center; padding: 20px; }
-        .tutorial-card { background: white; border-radius: 20px; padding: 25px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); animation: slideUp 0.3s ease-out; }
-        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .scenario-btn { border: 1px solid #cbd5e1; color: #64748b; background: white; font-size: 0.65rem; padding: 6px 2px; }
+        .scenario-btn.active { background-color: #0f172a; color: white; border-color: #0f172a; transform: scale(1.02); }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; display: flex; flex-direction: column; justify-content: flex-end; }
+        .modal-content { background: white; border-top-left-radius: 20px; border-top-right-radius: 20px; padding: 20px; max-height: 80vh; overflow-y: auto; }
+        @media(min-width: 640px) { .modal-overlay { align-items: center; justify-content: center; } .modal-content { border-radius: 20px; width: 100%; max-width: 450px; } }
     </style>
 </head>
 <body class="text-slate-800">
@@ -28,32 +27,24 @@
     <!-- Header -->
     <header class="bg-slate-900 text-white p-4 flex justify-between items-center sticky top-0 z-20 shadow-lg">
         <div class="flex items-center">
-            <h1 class="font-bold text-lg"><i class="fas fa-building mr-2 text-yellow-400"></i>AutoMarket <span class="text-[10px] bg-slate-700 px-1 rounded">ME</span></h1>
+            <h1 class="font-bold text-lg tracking-tight"><i class="fas fa-robot mr-2 text-green-400"></i>AutoMarket <span class="text-[10px] bg-slate-700 px-1 rounded">v15</span></h1>
         </div>
-        <div class="flex gap-2">
-            <button onclick="showTutorial()" class="text-xs bg-slate-700 hover:bg-slate-600 w-8 h-8 rounded-full font-bold shadow-sm flex items-center justify-center transition">
-                <i class="fas fa-question text-white"></i>
-            </button>
-            <button onclick="openConfig()" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-full font-bold shadow-sm flex items-center transition">
-                <i class="fas fa-cog mr-1"></i> Taxas
-            </button>
-        </div>
+        <button onclick="openConfig()" class="text-[10px] bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-full font-bold shadow-sm uppercase">Config</button>
     </header>
 
     <!-- TELA 1: UPLOAD -->
     <div id="setup-screen" class="p-6 flex-1 flex flex-col justify-center items-center text-center bg-white z-10">
-        <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6">
-            <i class="fas fa-file-invoice text-3xl text-slate-600"></i>
+        <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 border-4 border-slate-100">
+            <i class="fas fa-file-excel text-4xl text-green-600"></i>
         </div>
-        <h2 class="text-xl font-bold mb-2 text-slate-800">Sistema ME</h2>
-        <p class="text-sm text-gray-500 mb-6 max-w-xs mx-auto">Carregue o Planograma (.xlsx) atualizado.</p>
-        <label class="w-full cursor-pointer mb-4">
-            <div class="bg-blue-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg flex items-center justify-center transition active:scale-95">
-                <i class="fas fa-upload mr-3"></i> Carregar Arquivo
+        <h2 class="text-xl font-bold mb-2 text-slate-800">Carregar Dados</h2>
+        <p class="text-sm text-gray-500 mb-6">Importe o Planograma (.xlsx) para começar.</p>
+        <label class="w-full cursor-pointer mb-6 group">
+            <div class="bg-green-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg flex items-center justify-center active:scale-95 transition">
+                <i class="fas fa-folder-open mr-3"></i> Selecionar Arquivo
             </div>
             <input type="file" id="file-input" class="hidden" accept="*/*">
         </label>
-        <div id="db-status" class="text-xs text-gray-400">Aguardando</div>
     </div>
 
     <!-- TELA 2: SCANNER -->
@@ -61,83 +52,98 @@
         <div id="camera-modal" class="hidden fixed inset-0 z-50 bg-black bg-opacity-95 flex flex-col justify-center p-4">
             <div class="flex justify-between text-white mb-4">
                 <h3 class="font-bold">Scanner</h3>
-                <button onclick="stopCamera()" class="text-red-400 font-bold"><i class="fas fa-times"></i> Fechar</button>
+                <button onclick="stopCamera()" class="text-white bg-red-600 px-3 py-1 rounded-full text-xs font-bold">FECHAR</button>
             </div>
-            <div id="reader"></div>
+            <div id="reader" class="border-2 border-green-500"></div>
         </div>
 
+        <!-- Busca Híbrida -->
         <div class="bg-white p-4 shadow-sm z-10 border-b border-gray-200">
             <div class="flex gap-2">
-                <button onclick="startCamera()" class="bg-slate-800 text-white p-3 rounded-xl w-14 shadow-lg active:scale-95 transition">
-                    <i class="fas fa-camera"></i>
+                <button onclick="startCamera()" class="bg-slate-800 text-white p-3 rounded-xl w-14 shadow-lg active:scale-95 transition flex-shrink-0">
+                    <i class="fas fa-camera text-lg"></i>
                 </button>
-                <input type="number" id="ean-input" inputmode="numeric" placeholder="Código..." 
-                       class="flex-1 p-3 rounded-xl bg-gray-100 border-2 border-transparent focus:bg-white focus:border-blue-500 outline-none text-lg font-bold text-center">
-                <button onclick="manualSearch()" class="bg-blue-600 text-white p-3 rounded-xl w-14 shadow-lg active:scale-95 transition">
-                    <i class="fas fa-search"></i>
+                <input type="text" id="search-input" placeholder="Bipe ou Digite Nome..." 
+                       class="w-full p-3 pl-4 rounded-xl bg-gray-100 border-2 border-transparent focus:bg-white focus:border-green-500 outline-none text-lg font-bold text-center text-slate-800 shadow-inner">
+                <button onclick="manualSearch()" class="bg-green-600 text-white p-3 rounded-xl w-14 shadow-lg active:scale-95 transition flex-shrink-0">
+                    <i class="fas fa-search text-lg"></i>
                 </button>
             </div>
         </div>
 
+        <!-- Conteúdo -->
         <div class="flex-1 overflow-y-auto p-4 pb-24">
             <div id="empty-state" class="flex flex-col items-center justify-center h-64 text-gray-400 opacity-60">
-                <i class="fas fa-barcode text-5xl mb-4"></i>
-                <p class="text-sm font-medium">Bipe o produto</p>
+                <i class="fas fa-search text-5xl mb-4 text-gray-300"></i>
+                <p class="text-sm font-medium text-gray-400 text-center">Bipe o código ou digite<br>"Requeijao" para buscar</p>
             </div>
 
+            <!-- Lista de Resultados (Quando busca por nome) -->
+            <div id="search-results" class="hidden space-y-3"></div>
+
+            <!-- Card do Produto Único -->
             <div id="product-card" class="hidden animate-fade-in-up">
                 <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 mb-4 relative overflow-hidden">
-                    <div class="absolute top-0 left-0 w-1.5 h-full bg-blue-600"></div>
-                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1" id="prod-ean">EAN</span>
-                    <h2 class="text-xl font-bold text-gray-800 leading-tight mb-3" id="prod-name">Produto</h2>
+                    <div class="absolute top-0 left-0 w-1.5 h-full bg-green-500"></div>
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest" id="prod-ean">EAN</span>
+                        <div class="flex gap-2">
+                            <button onclick="linkBarcode()" class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold border border-blue-200 active:bg-blue-200">
+                                <i class="fas fa-link mr-1"></i> Vincular
+                            </button>
+                            <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-bold" id="prod-id">ID</span>
+                        </div>
+                    </div>
+                    <h2 class="text-lg font-bold text-slate-800 leading-tight mb-3" id="prod-name">Produto</h2>
+                    
                     <div class="flex items-end justify-between border-t border-gray-100 pt-3">
                         <div>
-                            <p class="text-xs text-gray-500 mb-0.5">Preço Venda</p>
+                            <p class="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Venda Atual</p>
                             <p class="text-2xl font-black text-slate-800" id="current-price">R$ 0,00</p>
                         </div>
                         <div class="text-right">
-                            <p class="text-xs text-gray-500 mb-0.5">Estoque</p>
-                            <span class="bg-gray-100 text-gray-800 px-2 py-1 rounded text-sm font-bold" id="current-stock">0</span>
+                            <p class="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Estoque</p>
+                            <span class="bg-green-50 text-green-700 px-2 py-1 rounded text-sm font-bold border border-green-100" id="current-stock">0 un</span>
                         </div>
                     </div>
                 </div>
 
+                <!-- Calculadora CFO -->
                 <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-200">
-                    <div class="flex justify-between items-center mb-4 bg-gray-50 p-2 rounded-lg cursor-pointer" onclick="editRefCost()">
-                        <span class="text-xs font-bold text-gray-500 uppercase">Custo Histórico</span>
+                    <div class="flex justify-between items-center mb-4 bg-orange-50 p-2 rounded-lg border border-orange-100 cursor-pointer" onclick="editRefCost()">
+                        <span class="text-[10px] font-bold text-orange-800 uppercase flex items-center"><i class="fas fa-history mr-1"></i> Custo Ref</span>
                         <div class="flex items-center gap-2">
-                            <span class="font-bold text-gray-700" id="ref-cost">R$ 0,00</span>
-                            <i class="fas fa-pen text-[10px] text-gray-400"></i>
+                            <span class="font-bold text-orange-900" id="ref-cost">R$ 0,00</span>
+                            <i class="fas fa-pencil-alt text-[10px] text-orange-400"></i>
                         </div>
                     </div>
 
                     <div class="relative mb-6">
-                        <label class="text-[10px] font-bold text-slate-800 uppercase mb-1 block">Preço Atacado (Hoje)</label>
-                        <span class="absolute left-4 top-8 text-gray-400 font-bold">R$</span>
-                        <input type="number" id="new-cost" step="0.01" class="w-full pl-10 pr-4 py-3 bg-blue-50 border border-blue-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none text-xl font-bold transition" placeholder="0.00" oninput="calculateCFO()">
+                        <label class="text-[10px] font-bold text-blue-600 uppercase mb-1 block">Preço Atacado (Hoje)</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-3.5 text-gray-400 font-bold">R$</span>
+                            <input type="number" id="new-cost" step="0.01" class="w-full pl-10 pr-4 py-3 bg-blue-50 border-2 border-blue-100 rounded-xl focus:bg-white focus:border-blue-500 outline-none text-xl font-bold transition text-slate-800" placeholder="0.00" oninput="calculateCFO()">
+                        </div>
                     </div>
 
                     <div class="mb-4">
-                        <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Simular Pagamento:</p>
-                        <div class="grid grid-cols-3 gap-2">
-                            <button onclick="setScenario('pix')" id="btn-pix" class="scenario-btn py-2 rounded-lg text-xs font-bold transition">PIX</button>
-                            <button onclick="setScenario('credito')" id="btn-credito" class="scenario-btn active py-2 rounded-lg text-xs font-bold transition">CRÉDITO</button>
-                            <button onclick="setScenario('voucher')" id="btn-voucher" class="scenario-btn py-2 rounded-lg text-xs font-bold transition">VOUCHER</button>
+                        <div class="grid grid-cols-4 gap-1">
+                            <button onclick="setScenario('pix')" id="btn-pix" class="scenario-btn py-2 rounded font-bold transition">PIX</button>
+                            <button onclick="setScenario('debito')" id="btn-debito" class="scenario-btn py-2 rounded font-bold transition">DÉB.</button>
+                            <button onclick="setScenario('credito')" id="btn-credito" class="scenario-btn active py-2 rounded font-bold transition">CRÉD.</button>
+                            <button onclick="setScenario('voucher')" id="btn-voucher" class="scenario-btn py-2 rounded font-bold transition text-red-500">VOUCH.</button>
                         </div>
                     </div>
 
                     <div id="cfo-feedback" class="hidden animate-fade-in">
-                        <div id="status-bar" class="p-3 rounded-lg text-sm font-bold text-white text-center mb-3 shadow-md transition-all">Analisando...</div>
-                        <div class="bg-gray-50 rounded-lg p-3 text-xs space-y-2 border border-gray-200">
-                            <div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-2">
-                                <span class="font-bold text-gray-600">Taxa Pagamento</span>
-                                <span class="bg-slate-200 px-2 py-0.5 rounded text-slate-700 font-bold" id="lbl-payment-rate">0%</span>
-                            </div>
-                            <div class="flex justify-between text-gray-500"><span>Taxas Variáveis</span><span id="val-var">- R$ 0,00</span></div>
-                            <div class="flex justify-between text-gray-500"><span>Custo Fixo Diluído</span><span id="val-fix">- R$ 0,00</span></div>
-                            <div class="flex justify-between border-t border-gray-200 pt-2 mt-2">
-                                <span class="font-bold text-slate-800 text-sm">LUCRO LÍQUIDO</span>
-                                <span class="font-bold text-sm" id="val-net">R$ 0,00</span>
+                        <div id="status-bar" class="p-3 rounded-lg text-sm font-bold text-white text-center mb-3 shadow-md">Analisando...</div>
+                        <div class="bg-slate-50 rounded-lg p-3 text-[11px] space-y-2 border border-slate-200">
+                            <div class="flex justify-between border-t border-slate-200 pt-2 mt-2 items-center">
+                                <span class="font-black text-slate-700 text-xs uppercase">Lucro Líquido</span>
+                                <div class="text-right">
+                                    <span class="font-black text-lg block leading-none" id="val-net">R$ 0,00</span>
+                                    <span class="text-[10px] font-bold text-gray-400" id="val-margin">0%</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -152,72 +158,17 @@
         </div>
     </div>
 
-    <!-- MODAL CONFIGURAÇÃO -->
-    <div id="config-modal" class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 flex items-end sm:items-center justify-center">
-        <div class="bg-white w-full sm:max-w-md h-[95vh] sm:h-auto rounded-t-2xl sm:rounded-2xl p-6 overflow-y-auto flex flex-col">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-bold text-slate-800">Configuração Fiscal</h2>
-                <button onclick="closeConfig()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+    <!-- MODAL CONFIGURAÇÃO (Simplificado para o código caber) -->
+    <div id="config-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 class="text-lg font-bold mb-4">Configuração Rápida</h2>
+            <div class="space-y-4">
+                <div><label class="text-xs">Regime</label><select id="cfg-regime" class="w-full p-2 bg-gray-100 rounded"><option value="me">ME (4%)</option><option value="mei">MEI (Fixo)</option></select></div>
+                <div><label class="text-xs">Custos Fixos (Total R$)</label><input type="number" id="cfg-fixed-total" class="w-full p-2 bg-gray-100 rounded" value="1825"></div>
+                <div><label class="text-xs">Faturamento Médio</label><input type="number" id="cfg-fat" class="w-full p-2 bg-gray-100 rounded" value="21000"></div>
+                <button onclick="saveConfig()" class="w-full bg-slate-900 text-white font-bold py-3 rounded-lg">Salvar</button>
             </div>
-            <div class="space-y-4 flex-1">
-                <div>
-                    <h3 class="text-xs font-bold text-blue-600 uppercase mb-2 border-b pb-1">Taxas Variáveis (%)</h3>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div><label class="text-[10px] text-gray-500 block">Licenciamento (6%)</label><input type="number" id="cfg-license" class="w-full p-2 bg-gray-100 rounded font-bold" value="6.0"></div>
-                        <div><label class="text-[10px] text-gray-500 block">Imposto ME</label><input type="number" id="cfg-tax-me" class="w-full p-2 bg-yellow-50 border border-yellow-200 rounded font-bold text-yellow-800" value="4.0"></div>
-                        <div><label class="text-[10px] text-gray-500 block">Condomínio Var.</label><input type="number" id="cfg-condo-var" class="w-full p-2 bg-gray-100 rounded font-bold" value="2.0"></div>
-                    </div>
-                </div>
-                <div>
-                    <h3 class="text-xs font-bold text-blue-600 uppercase mb-2 border-b pb-1 mt-2">Taxas Maquininha (%)</h3>
-                    <div class="grid grid-cols-3 gap-2">
-                        <div><label class="text-[9px] text-gray-500 block">PIX</label><input type="number" id="cfg-pix" class="w-full p-2 bg-gray-100 rounded font-bold" value="0.74"></div>
-                        <div><label class="text-[9px] text-gray-500 block">Crédito</label><input type="number" id="cfg-cred" class="w-full p-2 bg-gray-100 rounded font-bold" value="3.16"></div>
-                        <div><label class="text-[9px] text-gray-500 block">Voucher</label><input type="number" id="cfg-vouc" class="w-full p-2 bg-red-50 border border-red-200 rounded font-bold text-red-800" value="6.50"></div>
-                    </div>
-                </div>
-                <div>
-                    <h3 class="text-xs font-bold text-blue-600 uppercase mb-2 border-b pb-1 mt-2">Custos Fixos (R$ Mês)</h3>
-                    <div class="space-y-1 text-xs">
-                        <div class="flex justify-between items-center"><label>Luz/Condomínio</label><input type="number" id="cfg-luz" class="w-20 p-1 text-right bg-gray-100 rounded" value="600"></div>
-                        <div class="flex justify-between items-center"><label>Contadora</label><input type="number" id="cfg-serv" class="w-20 p-1 text-right bg-gray-100 rounded" value="150"></div>
-                        <div class="flex justify-between items-center"><label>Gasolina</label><input type="number" id="cfg-gas" class="w-20 p-1 text-right bg-gray-100 rounded" value="500"></div>
-                        <div class="flex justify-between items-center"><label>Internet</label><input type="number" id="cfg-net" class="w-20 p-1 text-right bg-gray-100 rounded" value="150"></div>
-                        <div class="flex justify-between items-center"><label>Monitoramento</label><input type="number" id="cfg-mon" class="w-20 p-1 text-right bg-gray-100 rounded" value="387"></div>
-                        <div class="flex justify-between items-center"><label>Igopass</label><input type="number" id="cfg-igo" class="w-20 p-1 text-right bg-gray-100 rounded" value="38"></div>
-                        <div class="flex justify-between items-center pt-2 mt-2 border-t border-gray-200"><label class="font-bold text-blue-900">Faturamento Médio</label><input type="number" id="cfg-fat" class="w-24 p-2 text-right bg-blue-50 border border-blue-300 font-bold" value="21000"></div>
-                    </div>
-                </div>
-                <div class="bg-slate-100 p-3 rounded-lg text-center mt-4">
-                    <p class="text-xs text-slate-500">Impacto Custo Fixo:</p>
-                    <p class="text-lg font-bold text-slate-800" id="fixed-impact-display">0.0%</p>
-                </div>
-            </div>
-            <button onclick="saveConfig()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl mt-4 shadow-lg">Salvar Configuração</button>
-        </div>
-    </div>
-
-    <!-- TUTORIAL OVERLAY -->
-    <div id="tutorial-modal" class="tutorial-overlay hidden">
-        <div class="tutorial-card">
-            <div id="tut-step-1" class="tut-step">
-                <i class="fas fa-file-excel text-4xl text-blue-600 mb-4"></i>
-                <h3 class="text-xl font-bold mb-2">1. Carregue o Arquivo</h3>
-                <p class="text-gray-600 text-sm mb-6">Baixe o <strong>Planograma</strong> do Shoppbud no celular e carregue aqui. O App funciona sem internet depois disso.</p>
-                <button onclick="nextTut(2)" class="bg-blue-600 text-white py-3 px-8 rounded-full font-bold w-full">Entendi</button>
-            </div>
-            <div id="tut-step-2" class="hidden tut-step">
-                <i class="fas fa-barcode text-4xl text-slate-700 mb-4"></i>
-                <h3 class="text-xl font-bold mb-2">2. Bipe no Atacado</h3>
-                <p class="text-gray-600 text-sm mb-6">No mercado, use a câmera para ler o código do produto. Digite o preço da etiqueta da prateleira.</p>
-                <button onclick="nextTut(3)" class="bg-slate-700 text-white py-3 px-8 rounded-full font-bold w-full">Próximo</button>
-            </div>
-            <div id="tut-step-3" class="hidden tut-step">
-                <i class="fas fa-chart-pie text-4xl text-green-600 mb-4"></i>
-                <h3 class="text-xl font-bold mb-2">3. Veja o Lucro Real</h3>
-                <p class="text-gray-600 text-sm mb-6">O App desconta todas as taxas (maquininha, franquia, luz). Se der <strong>VERDE</strong>, pode comprar!</p>
-                <button onclick="closeTutorial()" class="bg-green-600 text-white py-3 px-8 rounded-full font-bold w-full">Começar!</button>
-            </div>
+            <button onclick="closeConfig()" class="mt-4 text-xs text-gray-500 w-full text-center">Fechar</button>
         </div>
     </div>
 
@@ -230,67 +181,14 @@
     let html5QrcodeScanner = null;
     let colMap = {};
     let activeScenario = 'credito';
-    let config = {
-        var: { license: 6.0, condo: 2.0, taxME: 4.0 },
-        pay: { pix: 0.74, cred: 3.16, vouc: 6.50 },
-        fixed: { luz: 600, serv: 150, gas: 500, net: 150, mon: 387, igo: 38 },
-        revenue: 21000,
-        fixedRate: 0 
+    let linkedBarcodes = JSON.parse(localStorage.getItem('automarket_links') || '{}');
+    let lastScannedCode = "";
+
+    let config = { 
+        regime: 'me', 
+        rates: { lic: 6, condo: 2, taxME: 4, pix: 0.74, deb: 1.09, cred: 3.16, vouc: 6.5 },
+        fixedTotal: 1825, revenue: 21000, fixedRate: 0 
     };
-
-    // --- TUTORIAL ---
-    function showTutorial() {
-        document.getElementById('tutorial-modal').classList.remove('hidden');
-        document.getElementById('tut-step-1').classList.remove('hidden');
-        document.getElementById('tut-step-2').classList.add('hidden');
-        document.getElementById('tut-step-3').classList.add('hidden');
-    }
-    function nextTut(step) {
-        document.querySelectorAll('.tut-step').forEach(el => el.classList.add('hidden'));
-        document.getElementById(`tut-step-${step}`).classList.remove('hidden');
-    }
-    function closeTutorial() {
-        document.getElementById('tutorial-modal').classList.add('hidden');
-        localStorage.setItem('automarket_tut_seen', 'true');
-    }
-
-    // --- CONFIGURAÇÃO ---
-    function openConfig() { document.getElementById('config-modal').classList.remove('hidden'); recalcFixedImpact(); }
-    function closeConfig() { document.getElementById('config-modal').classList.add('hidden'); }
-    function recalcFixedImpact() {
-        const getVal = (id) => parseFloat(document.getElementById(id).value) || 0;
-        const totalFixed = getVal('cfg-luz') + getVal('cfg-serv') + getVal('cfg-gas') + getVal('cfg-net') + getVal('cfg-mon') + getVal('cfg-igo');
-        const revenue = getVal('cfg-fat') || 1;
-        const rate = (totalFixed / revenue) * 100;
-        document.getElementById('fixed-impact-display').textContent = rate.toFixed(2) + "%";
-        return rate;
-    }
-    function saveConfig() {
-        config.var.license = parseFloat(document.getElementById('cfg-license').value);
-        config.var.condo = parseFloat(document.getElementById('cfg-condo-var').value);
-        config.var.taxME = parseFloat(document.getElementById('cfg-tax-me').value);
-        config.pay.pix = parseFloat(document.getElementById('cfg-pix').value);
-        config.pay.cred = parseFloat(document.getElementById('cfg-cred').value);
-        config.pay.vouc = parseFloat(document.getElementById('cfg-vouc').value);
-        config.fixedRate = recalcFixedImpact();
-        localStorage.setItem('automarket_config_v13', JSON.stringify(config));
-        closeConfig();
-        if(currentProd) calculateCFO(); 
-    }
-
-    window.onload = function() {
-        // Load Config
-        const saved = localStorage.getItem('automarket_config_v13');
-        if(saved) {
-            config = JSON.parse(saved);
-            document.getElementById('cfg-license').value = config.var.license;
-            document.getElementById('cfg-tax-me').value = config.var.taxME;
-            // ... (fill others if needed)
-        }
-        recalcFixedImpact();
-        // Show Tutorial if first time
-        if(!localStorage.getItem('automarket_tut_seen')) showTutorial();
-    }
 
     // --- LEITURA ARQUIVO ---
     document.getElementById('file-input').addEventListener('change', function(e) {
@@ -303,11 +201,12 @@
                 const workbook = XLSX.read(data, {type: 'array'});
                 const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {defval:""});
                 db = jsonData;
+                
                 const headers = Object.keys(db[0]);
                 const find = (k) => headers.find(h => h.toLowerCase().includes(k));
                 colMap = {
                     ean: find('barras') || find('ean') || headers[2],
-                    name: find('nome') || headers[3],
+                    name: find('nome') || find('produto') || headers[3],
                     cost: find('lista') || find('custo') || headers[7],
                     price: find('consumidor') || find('final') || headers[8],
                     stock: find('estoque') || headers[9]
@@ -319,80 +218,178 @@
         reader.readAsArrayBuffer(file);
     });
 
-    // --- BUSCA ---
-    function manualSearch() { search(document.getElementById('ean-input').value); }
+    // --- BUSCA HÍBRIDA (CÓDIGO OU NOME) ---
+    function manualSearch() { search(document.getElementById('search-input').value); }
+    
     function search(query) {
-        const clean = String(query).trim();
-        const found = db.find(r => String(r[colMap.ean]).trim() == clean);
-        if(found) render(found, clean);
-        else alert("Não encontrado.");
+        if(!query) return;
+        const clean = String(query).trim().toUpperCase();
+        lastScannedCode = clean; // Salva o que foi digitado/bipado para vincular depois
+
+        // 1. Tenta achar EAN direto
+        let found = db.find(r => String(r[colMap.ean]).trim() == clean);
+        
+        // 2. Se não achou, verifica se é um código vinculado (Danone -> Genérico)
+        if (!found && linkedBarcodes[clean]) {
+            // Busca pelo ID do produto vinculado
+            found = db.find(r => String(r[colMap.ean]).trim() == linkedBarcodes[clean]);
+            if(found) alert(`Produto vinculado encontrado: ${found[colMap.name]}`);
+        }
+
+        if(found) {
+            render(found, clean);
+        } else {
+            // 3. Busca por Nome (Texto)
+            const results = db.filter(r => String(r[colMap.name]).toUpperCase().includes(clean));
+            
+            if (results.length > 0) {
+                renderList(results);
+            } else {
+                alert("Produto não encontrado. Tente buscar parte do nome.");
+            }
+        }
     }
-    function render(p, ean) {
+
+    function renderList(list) {
+        // Esconde Card Único, Mostra Lista
+        document.getElementById('product-card').classList.add('hidden');
+        document.getElementById('empty-state').classList.add('hidden');
+        const container = document.getElementById('search-results');
+        container.innerHTML = `<p class="text-xs font-bold text-gray-500 uppercase px-2 mb-2">Encontrados: ${list.length}</p>`;
+        container.classList.remove('hidden');
+
+        list.slice(0, 20).forEach(p => { // Limita a 20 resultados
+            const div = document.createElement('div');
+            div.className = "bg-white p-4 rounded-xl border border-gray-200 shadow-sm active:bg-gray-50 cursor-pointer";
+            div.innerHTML = `
+                <div class="flex justify-between">
+                    <span class="font-bold text-slate-800 text-sm">${p[colMap.name]}</span>
+                    <span class="text-green-700 font-bold text-sm">${fmtMoney(p[colMap.price])}</span>
+                </div>
+                <div class="text-xs text-gray-400 mt-1">EAN: ${p[colMap.ean]} | Est: ${p[colMap.stock]}</div>
+            `;
+            div.onclick = () => {
+                container.classList.add('hidden');
+                render(p, p[colMap.ean]);
+            };
+            container.appendChild(div);
+        });
+    }
+
+    function render(p, scanCode) {
         currentProd = p;
+        document.getElementById('search-results').classList.add('hidden');
         document.getElementById('product-card').classList.remove('hidden');
         document.getElementById('empty-state').classList.add('hidden');
         document.getElementById('floating-action').classList.remove('hidden');
+
         document.getElementById('prod-name').textContent = p[colMap.name];
-        document.getElementById('prod-ean').textContent = ean;
+        document.getElementById('prod-ean').textContent = p[colMap.ean]; // Mostra o EAN oficial do sistema
         document.getElementById('current-price').textContent = fmtMoney(p[colMap.price]);
-        document.getElementById('current-stock').textContent = parseInt(p[colMap.stock]);
+        document.getElementById('current-stock').textContent = parseInt(p[colMap.stock]) + " un";
         document.getElementById('ref-cost').textContent = fmtMoney(p[colMap.cost]);
         document.getElementById('ref-cost').dataset.val = parseMoney(p[colMap.cost]);
+        
         document.getElementById('new-cost').value = '';
         document.getElementById('cfo-feedback').classList.add('hidden');
         setScenario('credito');
     }
 
-    // --- CÉREBRO ---
-    window.setScenario = function(type) {
-        activeScenario = type;
-        ['pix', 'credito', 'voucher'].forEach(t => {
-            const btn = document.getElementById('btn-'+t);
-            if(t === type) btn.classList.add('active'); else btn.classList.remove('active');
-        });
-        calculateCFO();
+    // --- FUNÇÃO DE VINCULAR CÓDIGO ---
+    window.linkBarcode = function() {
+        // lastScannedCode é o código do Danone que não foi achado. currentProd é o "Requeijão Diversos".
+        // Só permite vincular se o código escaneado for diferente do código do produto
+        const officialEan = String(currentProd[colMap.ean]).trim();
+        
+        if (lastScannedCode && lastScannedCode !== officialEan && !isNaN(lastScannedCode)) {
+            if(confirm(`Deseja vincular o código escaneado (${lastScannedCode}) a este produto (${currentProd[colMap.name]}) para sempre?`)) {
+                linkedBarcodes[lastScannedCode] = officialEan;
+                localStorage.setItem('automarket_links', JSON.stringify(linkedBarcodes));
+                alert("Vínculo salvo! Próxima vez que bipar, abrirá direto.");
+            }
+        } else {
+            alert("Para vincular, primeiro tente bipar o código novo (que vai dar erro), depois busque o produto pelo nome e clique aqui.");
+        }
     }
+
+    // --- CÉREBRO CFO ---
     window.calculateCFO = function() {
         if(!currentProd) return;
         const newCost = parseFloat(document.getElementById('new-cost').value);
         if(!newCost) { document.getElementById('cfo-feedback').classList.add('hidden'); return; }
         const sellPrice = parseMoney(currentProd[colMap.price]);
-        let paymentRate = 0;
-        if(activeScenario === 'pix') paymentRate = config.pay.pix;
-        if(activeScenario === 'credito') paymentRate = config.pay.cred;
-        if(activeScenario === 'voucher') paymentRate = config.pay.vouc;
-        const totalVarPercent = config.var.license + config.var.condo + config.var.taxME + paymentRate;
+        
+        let paymentRate = config.rates[activeScenario];
+        let taxRegimeRate = config.regime === 'me' ? config.rates.taxME : 0;
+        const totalVarPercent = config.rates.lic + config.rates.condo + taxRegimeRate + paymentRate;
         const totalVarVal = sellPrice * (totalVarPercent / 100);
-        const totalFixPercent = config.fixedRate;
-        const totalFixVal = sellPrice * (totalFixPercent / 100);
+        
+        // Recalcula fixo
+        const fixedRate = (config.fixedTotal / config.revenue) * 100;
+        const totalFixVal = sellPrice * (fixedRate / 100);
+
         const netProfit = sellPrice - totalVarVal - totalFixVal - newCost;
         const margin = (netProfit / sellPrice) * 100;
         
         document.getElementById('cfo-feedback').classList.remove('hidden');
-        document.getElementById('lbl-payment-rate').textContent = `${paymentRate}% (${activeScenario.toUpperCase()})`;
-        document.getElementById('val-var').textContent = `- ${fmtMoney(totalVarVal)} (${totalVarPercent.toFixed(1)}%)`;
-        document.getElementById('val-fix').textContent = `- ${fmtMoney(totalFixVal)} (${totalFixPercent.toFixed(1)}%)`;
+        document.getElementById('val-var').textContent = `- ${fmtMoney(totalVarVal)}`;
+        document.getElementById('val-fix').textContent = `- ${fmtMoney(totalFixVal)}`;
         const netEl = document.getElementById('val-net');
-        netEl.textContent = fmtMoney(netProfit) + ` (${margin.toFixed(1)}%)`;
+        netEl.textContent = fmtMoney(netProfit) + ` (${margin.toFixed(0)}%)`;
+        
         const statusEl = document.getElementById('status-bar');
         if (netProfit < 0) {
-            statusEl.textContent = "🚨 PREJUÍZO!"; statusEl.className = "p-3 rounded-lg text-sm font-bold text-white text-center mb-3 shadow-md bg-red-600 animate-pulse";
-            netEl.className = "font-bold text-sm text-red-600";
+            statusEl.textContent = "🚨 PREJUÍZO REAL!"; statusEl.className = "p-3 rounded-lg text-sm font-bold text-white text-center mb-3 shadow-md bg-red-600 animate-pulse";
         } else if (margin < 15) {
-            statusEl.textContent = "⚠️ MARGEM BAIXA"; statusEl.className = "p-3 rounded-lg text-sm font-bold text-white text-center mb-3 shadow-md bg-yellow-500";
-            netEl.className = "font-bold text-sm text-yellow-600";
+            statusEl.textContent = "⚠️ MARGEM DE RISCO"; statusEl.className = "p-3 rounded-lg text-sm font-bold text-white text-center mb-3 shadow-md bg-yellow-500";
         } else {
             statusEl.textContent = "✅ LUCRO APROVADO"; statusEl.className = "p-3 rounded-lg text-sm font-bold text-white text-center mb-3 shadow-md bg-green-600";
-            netEl.className = "font-bold text-sm text-green-600";
         }
     }
 
-    // --- HELPERS ---
+    window.setScenario = function(type) {
+        activeScenario = type;
+        ['pix', 'debito', 'credito', 'voucher'].forEach(t => {
+            const btn = document.getElementById('btn-'+t);
+            if(t === type) btn.classList.add('active'); else btn.classList.remove('active');
+        });
+        calculateCFO();
+    }
+
+    // --- CONFIGURAÇÃO ---
+    function openConfig() { document.getElementById('config-modal').classList.remove('hidden'); }
+    function closeConfig() { document.getElementById('config-modal').classList.add('hidden'); }
+    function saveConfig() {
+        config.regime = document.getElementById('cfg-regime').value;
+        config.fixedTotal = parseFloat(document.getElementById('cfg-fixed-total').value);
+        config.revenue = parseFloat(document.getElementById('cfg-fat').value);
+        localStorage.setItem('automarket_config_v15', JSON.stringify(config));
+        closeConfig();
+        if(currentProd) calculateCFO();
+    }
+
+    // --- HELPERS E STARTUP ---
+    window.onload = function() {
+        const saved = localStorage.getItem('automarket_config_v15');
+        if(saved) config = JSON.parse(saved);
+        // Preenche Config UI (simplificado)
+        document.getElementById('cfg-fixed-total').value = config.fixedTotal;
+        document.getElementById('cfg-fat').value = config.revenue;
+    }
+
     function parseMoney(v) { if(typeof v === 'number') return v; return parseFloat(String(v).replace('R$', '').replace(',','.').trim()) || 0; }
     function fmtMoney(v) { return v.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}); }
-    function startCamera() { document.getElementById('camera-modal').classList.remove('hidden'); html5QrcodeScanner = new Html5Qrcode("reader"); html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (txt) => { stopCamera(); document.getElementById('ean-input').value = txt; search(txt); }).catch(err => { alert("Erro Câmera: " + err); stopCamera(); }); }
+    
+    function startCamera() {
+        document.getElementById('camera-modal').classList.remove('hidden');
+        html5QrcodeScanner = new Html5Qrcode("reader");
+        html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (txt) => {
+            stopCamera(); document.getElementById('search-input').value = txt; search(txt);
+        }).catch(err => { alert("Erro Câmera: " + err); stopCamera(); });
+    }
     function stopCamera() { if(html5QrcodeScanner) html5QrcodeScanner.stop().then(()=>document.getElementById('camera-modal').classList.add('hidden')); else document.getElementById('camera-modal').classList.add('hidden'); }
-    function resetApp() { document.getElementById('ean-input').value=''; document.getElementById('product-card').classList.add('hidden'); document.getElementById('floating-action').classList.add('hidden'); document.getElementById('empty-state').classList.remove('hidden'); }
+    function resetApp() { document.getElementById('search-input').value=''; document.getElementById('product-card').classList.add('hidden'); document.getElementById('floating-action').classList.add('hidden'); document.getElementById('empty-state').classList.remove('hidden'); }
+
 </script>
 </body>
 </html>
